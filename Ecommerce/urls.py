@@ -23,4 +23,5 @@ urlpatterns = [
     path('store/', include('store.urls')),
     path('tags/', include('tags.urls')),
     path('likes/', include('likes.urls')),
+    path('playground/', include('playground.urls')),
 ]  + debug_toolbar_urls()

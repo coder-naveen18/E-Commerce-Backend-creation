@@ -32,8 +32,8 @@ class Product(models.Model):
 
 class Customer(models.Model):
     class typeChoice(models.TextChoices):
-        GOLD = 'G', 'Gold',
-        SILVER = 'S', 'Silver',
+        GOLD = 'G', 'Gold'
+        SILVER = 'S', 'Silver'
         BRONZE = 'B', 'Bronze'
 
     first_name = models.CharField(max_length=255)
@@ -51,8 +51,8 @@ class Customer(models.Model):
 
 class Order(models.Model):
     class typeChoice(models.TextChoices):
-        PENDING = 'P', 'Pending',
-        CONFIRM = 'C', 'Confirm',
+        PENDING = 'P', 'Pending'
+        CONFIRM = 'C', 'Confirm'
         FAILED = 'F', 'Failed'
 
     payment_status = models.CharField(max_length=1, choices=typeChoice.choices, default=typeChoice.PENDING)
