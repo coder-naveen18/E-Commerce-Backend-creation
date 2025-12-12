@@ -25,7 +25,8 @@ def product(request):
     #         print(item.product) 
 
 
-    # querying the generic relations steps -->
+    # Querying the generic relations steps -->
+
     # 1. Get the ContentType for the Product model.
     # 2. Use that ContentType to filter TaggedItem objects where the content_type matches and object_id is the ID of the specific Product.
     # 3. This will give you all tags associated with that specific Product.

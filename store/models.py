@@ -14,6 +14,12 @@ class Collection(models.Model):
     # here we are having a issue --> Reverse queryname for the 'store.collection.featured_product' clashed with field name 'store.product.collection' -----> to solve that either we can add related_name to something or if we don;t want to take load we make related_name ="+".
     # Now after using the + , django will not Create the reverse relation 
 
+    def __str__(self):
+        return self.title
+    
+    class Meta:
+        ordering = ['title']
+
 
 # Product
 class Product(models.Model):
@@ -28,6 +34,9 @@ class Product(models.Model):
 
     def __str__(self):
         return self.title
+    
+    class Meta:
+        ordering = ['title']    
     
 
 class Customer(models.Model):
@@ -45,7 +54,10 @@ class Customer(models.Model):
     membership = models.CharField(max_length=1, choices=typeChoice.choices, default=typeChoice.SILVER)
 
     def __str__(self):
-        return f"{self.first_name}-{self.last_name}"
+        return f"{self.first_name} {self.last_name}"
+    
+    class Meta:
+        ordering = ['first_name', 'last_name']
     
 
 
