@@ -10,10 +10,11 @@ class TaggedItemManager(models.Manager):
             content_type=content_type,
             object_id=object_id
         )
-
-# Create your models here.
 class Tag(models.Model):
     label = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.label
 
 class TaggedItem(models.Model):
     objects = TaggedItemManager()
