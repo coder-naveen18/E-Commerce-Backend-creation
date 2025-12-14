@@ -1,5 +1,9 @@
 from django.urls import path
-from .views import myname
+from . import views
+
+
 urlpatterns = [
-    path('first/', myname)
+    path('products/', views.product_list),
+    path('products/<int:id>/', views.product_detail),
+    path('collections/<int:pk>/', views.collection_detail, name='collection-detail'),  # Example additional endpoint
 ]
