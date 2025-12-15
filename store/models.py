@@ -13,7 +13,7 @@ class Collection(models.Model):
     title = models.CharField(max_length=255)
     featured_product = models.ForeignKey('Product', on_delete=models.SET_NULL, null=True, related_name="+")
     # here we are having a issue --> Reverse queryname for the 'store.collection.featured_product' clashed with field name 'store.product.collection' -----> to solve that either we can add related_name to something or if we don;t want to take load we make related_name ="+".
-    # Now after using the + , django will not Create the reverse relation 
+    # Now after using the '+' , django will not Create the reverse relation 
 
     def __str__(self):
         return self.title
@@ -30,7 +30,7 @@ class Product(models.Model):
     inventory = models.IntegerField(validators=[MinValueValidator(0)])
     last_update = models.DateTimeField(auto_now=True)
 
-    collection = models.ForeignKey(Collection, on_delete=models.PROTECT)
+    collection = models.ForeignKey(Collection, on_delete=models.PROTECT, related_name='products')
     promotions = models.ManyToManyField(Promotion, blank=True)
 
     def __str__(self):
@@ -78,7 +78,7 @@ class Order(models.Model):
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.PROTECT)
-    product = models.ForeignKey(Product, on_delete=models.PROTECT)
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='orderitems')
     quantity = models.PositiveSmallIntegerField()
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
 
