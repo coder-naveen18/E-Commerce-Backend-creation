@@ -33,7 +33,7 @@ A comprehensive Django REST Framework-based backend system for an e-commerce pla
 
 - **Framework**: Django 6.0+
 - **API**: Django REST Framework
-- **Database**: SQLite (development) - easily configurable for PostgreSQL/MySQL
+- **Database**: MySQL (development) - easily configurable for PostgreSQL/In-build django Sqlite
 - **Utilities**:
   - `django-extensions` - Additional management commands
   - `django-debug-toolbar` - Performance debugging
