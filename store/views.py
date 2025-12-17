@@ -166,16 +166,37 @@ class ProductViewSet(ModelViewSet):
 #                 )
 #             product.delete()
 #             return Response(status=status.HTTP_204_NO_CONTENT)
-    
-# creating the generic class based views -->
-# collection list endpoint ---> store/collections/
 
-class CollectionList(ListCreateAPIView):
+
+# Combining the CollectionList and CollectionDetail class based views
+
+class CollectionViewSet(ModelViewSet):
     queryset = Collection.objects.all()
     serializer_class = CollectionSerializer
 
     def get_serializer_context(self):
         return {'request': self.request}
+    
+    def destroy(self, request, *args, **kwargs):
+        # collection = get_object_or_404(Collection, pk=pk)
+        if Product.objects.filter(collection_id=kwargs['pk']).count() > 0:
+            return Response(
+                {'error': 'Collection cannot be deleted because it includes one or more products.'},
+                status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
+        return super().destroy(request, *args, **kwargs)
+
+# creating the generic class based views -->
+# collection list endpoint ---> store/collections/
+
+# class CollectionList(ListCreateAPIView):
+#     queryset = Collection.objects.all()
+#     serializer_class = CollectionSerializer
+
+#     def get_serializer_context(self):
+#         return {'request': self.request}
+    
+   
 
 # @api_view(['GET', 'POST'])
 # def collection_list(request):
@@ -192,19 +213,19 @@ class CollectionList(ListCreateAPIView):
 # collection detail endpoint ---> store/collections/<pk>/
 # creating the class based views using the generic class based views
 
-class CollectionDetail(RetrieveUpdateDestroyAPIView):
-    queryset = Collection.objects.all()
-    serializer_class = CollectionSerializer 
+# class CollectionDetail(RetrieveUpdateDestroyAPIView):
+#     queryset = Collection.objects.all()
+#     serializer_class = CollectionSerializer 
 
-    def delete(self, request, pk):
-        collection = get_object_or_404(Collection, pk=pk)
-        if collection.products.count() > 0:
-            return Response(
-                {'error': 'Collection cannot be deleted because it includes one or more products.'},
-                status=status.HTTP_405_METHOD_NOT_ALLOWED
-            )
-        collection.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+#     def delete(self, request, pk):
+#         collection = get_object_or_404(Collection, pk=pk)
+#         if collection.products.count() > 0:
+#             return Response(
+#                 {'error': 'Collection cannot be deleted because it includes one or more products.'},
+#                 status=status.HTTP_405_METHOD_NOT_ALLOWED
+#             )
+#         collection.delete()
+#         return Response(status=status.HTTP_204_NO_CONTENT)
 
 # # function based views for collection detail endpoint
 # @api_view(['GET', 'PUT', 'DELETE'])
