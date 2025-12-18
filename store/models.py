@@ -1,7 +1,10 @@
 from django.core.validators import MinValueValidator
 from django.db import models
+import uuid
 from phonenumber_field.modelfields import PhoneNumberField
 
+def generate_uuid_hex():
+    return uuid.uuid4().hex  # 32 chars, no hyphens
 
 # Promotion
 class Promotion(models.Model):
@@ -90,14 +93,23 @@ class Address(models.Model):
     customer = models.OneToOneField(Customer, on_delete=models.CASCADE, primary_key=True) # implemented the one-to-one relation between the Customer and the Address models
 
 class Cart(models.Model):
+    id = models.CharField(
+        primary_key=True,
+        max_length=32,
+        unique=True,
+        default=generate_uuid_hex,
+        editable=False,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
 
 class CartItem(models.Model):
-    cart = models.ForeignKey(Cart, on_delete=models.CASCADE)
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity = models.PositiveSmallIntegerField()
+    quantity = models.IntegerField()
 
+    class Meta:
+        unique_together = [['cart', 'product']]
 
 class Review(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
