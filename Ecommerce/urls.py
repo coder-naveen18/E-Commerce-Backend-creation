@@ -28,4 +28,6 @@ urlpatterns = [
     path('tags/', include('tags.urls')),
     path('likes/', include('likes.urls')),
     path('playground/', include('playground.urls')),
+    path('auth/', include('djoser.urls')),
+    path('auth/', include('djoser.urls.jwt')),
 ]  + debug_toolbar_urls()

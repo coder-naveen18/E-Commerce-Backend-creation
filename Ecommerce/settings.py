@@ -29,12 +29,13 @@ INSTALLED_APPS = [
     'django_extensions',
     'django_filters',
     'rest_framework',
+    'djoser',
     "debug_toolbar",
     'store',
-    'store_custom',
     'tags',
     'likes',
     'playground',
+    'core',
 ]
 
 MIDDLEWARE = [
@@ -128,4 +129,19 @@ REST_FRAMEWORK = {
     'COERCE_DECIMAL_TO_STRING': False,  
     # 'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination', # FOR GLOBAL PAGINATION
     # 'PAGE_SIZE': 10,
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
+
+SIMPLE_JWT = {
+   'AUTH_HEADER_TYPES': ('JWT',),
+}
+
+AUTH_USER_MODEL = 'core.User'
+
+DJOSER = {
+    'SERIALIZERS':{
+        'user_create': 'core.serializers.UserCreateSerializer'
+    }
 }
