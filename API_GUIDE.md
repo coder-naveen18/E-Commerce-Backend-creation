@@ -11,7 +11,13 @@ http://127.0.0.1:8000
 ## Table of Contents
 
 - [Products API](#products-api)
+- [Product Query Options](#product-query-options)
+- [Product Reviews](#product-reviews)
 - [Collections API](#collections-api)
+- [Carts](#carts)
+- [Cart Items](#cart-items)
+- [Customers](#customers)
+- [Authentication (JWT)](#authentication-jwt)
 - [Common Response Codes](#common-response-codes)
 - [Error Handling](#error-handling)
 
@@ -22,6 +28,8 @@ http://127.0.0.1:8000
 ### 1. List All Products
 
 **Endpoint:** `GET /store/products/`
+
+**Permissions:** Read is open; create/update/delete require staff (admin) accounts.
 
 **Request:**
 
@@ -227,11 +235,33 @@ curl -X DELETE http://127.0.0.1:8000/store/products/15/
 
 ---
 
+## Product Query Options
+
+- **Filter**
+  - By collection: `/store/products/?collection_id=3`
+  - By price range: `/store/products/?price__gt=50&price__lt=200`
+- **Search**
+  - `/store/products/?search=keyboard` (matches `title`, `description`)
+- **Ordering**
+  - `/store/products/?ordering=price` or `/store/products/?ordering=-title`
+- **Pagination** (page-number)
+  - `/store/products/?page=2&page_size=20` (max `page_size` is 100)
+
+Combine them as needed, for example:
+
+```bash
+curl "http://127.0.0.1:8000/store/products/?collection_id=3&search=mouse&ordering=-price&page=1&page_size=5"
+```
+
+---
+
 ## Collections API
 
 ### 1. List All Collections
 
 **Endpoint:** `GET /store/collections/`
+
+**Permissions:** Read is open; create/update/delete require staff (admin) accounts.
 
 **Request:**
 
@@ -377,6 +407,149 @@ curl -X DELETE http://127.0.0.1:8000/store/collections/5/
 ```
 
 **Note:** Collections cannot be deleted if they contain any products.
+
+---
+
+## Product Reviews
+
+Nested under a product using `product_id`.
+
+### 1. List Reviews
+
+`GET /store/products/{product_id}/reviews/`
+
+```bash
+curl http://127.0.0.1:8000/store/products/1/reviews/
+```
+
+### 2. Create Review
+
+`POST /store/products/{product_id}/reviews/`
+
+```bash
+curl -X POST http://127.0.0.1:8000/store/products/1/reviews/ \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Jane", "description": "Great value"}'
+```
+
+### 3. Update / Delete Review
+
+Use `PUT`, `PATCH`, or `DELETE` on `/store/products/{product_id}/reviews/{id}/`.
+
+---
+
+## Carts
+
+### 1. Create Cart
+
+`POST /store/carts/`
+
+```bash
+curl -X POST http://127.0.0.1:8000/store/carts/
+```
+
+Response returns a cart UUID: `{ "id": "<cart_id>", "items": [], "total_price": "0.00" }`
+
+### 2. Get Cart
+
+`GET /store/carts/{cart_id}`
+
+Returns cart lines with `total_price` aggregated.
+
+### 3. Delete Cart
+
+`DELETE /store/carts/{cart_id}` deletes the cart and all items.
+
+---
+
+## Cart Items
+
+Nested under a cart using `cart_id`.
+
+### 1. Add Item
+
+`POST /store/carts/{cart_id}/items/`
+
+```bash
+curl -X POST http://127.0.0.1:8000/store/carts/abcd1234/items/ \
+  -H "Content-Type: application/json" \
+  -d '{"product_id": 3, "quantity": 2}'
+```
+
+- If the product already exists in the cart, quantity is incremented.
+
+### 2. List Items
+
+`GET /store/carts/{cart_id}/items/`
+
+### 3. Update Quantity
+
+`PATCH /store/carts/{cart_id}/items/{id}` with `{ "quantity": 5 }`.
+
+### 4. Remove Item
+
+`DELETE /store/carts/{cart_id}/items/{id}`
+
+---
+
+## Customers
+
+- Admin-only CRUD: `/store/customers/` and `/store/customers/{id}`
+- Authenticated self-service endpoint:
+
+  - `GET /store/customers/me/` — fetch your profile
+  - `PUT /store/customers/me/` — update your profile (phone, birth_date, membership)
+
+---
+
+## Authentication (JWT)
+
+Provided by Djoser + Simple JWT.
+
+### Endpoints
+
+| Method | Endpoint             | Description                   |
+| ------ | -------------------- | ----------------------------- |
+| POST   | `/auth/jwt/create/`  | Obtain `access` and `refresh` |
+| POST   | `/auth/jwt/refresh/` | Refresh the `access` token    |
+| POST   | `/auth/jwt/verify/`  | Verify token validity         |
+| POST   | `/auth/users/`       | Register user                 |
+| GET    | `/auth/users/me/`    | Current user profile          |
+
+### Request examples
+
+Create tokens:
+
+```bash
+curl -X POST http://127.0.0.1:8000/auth/jwt/create/ \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "your-password"}'
+```
+
+Use access token (header type set to `JWT` in settings):
+
+```bash
+curl http://127.0.0.1:8000/store/products/ \
+  -H "Authorization: JWT <access_token>"
+```
+
+Refresh token:
+
+```bash
+curl -X POST http://127.0.0.1:8000/auth/jwt/refresh/ \
+  -H "Content-Type: application/json" \
+  -d '{"refresh": "<refresh_token>"}'
+```
+
+Verify token:
+
+```bash
+curl -X POST http://127.0.0.1:8000/auth/jwt/verify/ \
+  -H "Content-Type: application/json" \
+  -d '{"token": "<access_or_refresh>"}'
+```
+
+**Authorization header**: `Authorization: JWT <access_token>`
 
 ---
 

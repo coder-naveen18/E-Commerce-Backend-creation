@@ -20,8 +20,12 @@ A comprehensive Django REST Framework-based backend system for an e-commerce pla
 - **Product Management**: Full CRUD operations for products with pricing, inventory, and descriptions
 - **Collection Management**: Organize products into collections with featured products
 - **Customer Management**: Track customer information with membership tiers (Gold, Silver, Bronze)
+- **Catalog Discovery**: Filtering (collection, price range), search (title, description), ordering (title, price), and page-number pagination
 - **Order Management**: Process orders with payment status tracking
-- **Shopping Cart**: Cart and cart item management for customer shopping sessions
+- **Shopping Cart**: Cart and cart item management for customer shopping sessions, including quantity merging
+- **Product Reviews**: Nested reviews per product with clean URL structure
+- **Customer Profile Endpoint**: `customers/me/` for authenticated self-service profile read/update
+- **Authentication**: JWT auth via Djoser + Simple JWT (`/auth/jwt/create`, `/auth/jwt/refresh`, `/auth/jwt/verify`)
 - **Promotion System**: Apply promotions and discounts to products
 - **Address Management**: One-to-one relationship for customer addresses
 - **Phone Number Support**: International phone number validation using phonenumber_field
@@ -39,6 +43,10 @@ A comprehensive Django REST Framework-based backend system for an e-commerce pla
   - `django-debug-toolbar` - Performance debugging
   - `phonenumber_field` - International phone number validation
   - `python-dotenv` - Environment variable management
+    - `django-filter` - Query filtering for list endpoints
+    - `drf-nested-routers` - Nested routing for cart items and product reviews
+    - `djoser` - Auth endpoints and user management
+    - `djangorestframework-simplejwt` - JWT issuance/refresh/verify
 
 ## 📁 Project Structure
 
@@ -165,6 +173,20 @@ Promotional campaigns and discounts.
 
 ## 🌐 API Endpoints
 
+### Authentication (Djoser + Simple JWT)
+
+| Method | Endpoint              | Description                    |
+| ------ | --------------------- | ------------------------------ |
+| POST   | `/auth/jwt/create/`   | Obtain access/refresh tokens   |
+| POST   | `/auth/jwt/refresh/`  | Refresh access token           |
+| POST   | `/auth/jwt/verify/`   | Verify access or refresh token |
+| POST   | `/auth/users/`        | Register user                  |
+| GET    | `/auth/users/me/`     | Get current user               |
+| POST   | `/auth/token/login/`  | Obtain DRF token (if enabled)  |
+| POST   | `/auth/token/logout/` | Revoke DRF token (if enabled)  |
+
+**Authorization header**: `Authorization: JWT <access_token>` (matches `AUTH_HEADER_TYPES=('JWT',)` in settings)
+
 ### Products
 
 | Method | Endpoint                | Description                 |
@@ -178,6 +200,13 @@ Promotional campaigns and discounts.
 
 \*Deletion is prevented if the product is associated with any order items.
 
+**Query parameters**
+
+- Filtering: `collection_id`, `price__gt`, `price__lt`
+- Search: `search` (matches `title`, `description`)
+- Ordering: `ordering=title` or `ordering=price` (prefix with `-` for descending)
+- Pagination: `page` and `page_size` (max 100)
+
 ### Collections
 
 | Method | Endpoint                   | Description                    |
@@ -190,6 +219,47 @@ Promotional campaigns and discounts.
 | DELETE | `/store/collections/{pk}/` | Delete a collection\*          |
 
 \*Deletion is prevented if the collection contains any products.
+
+### Product Reviews (nested)
+
+| Method | Endpoint                                    | Description            |
+| ------ | ------------------------------------------- | ---------------------- |
+| GET    | `/store/products/{product_id}/reviews/`     | List reviews           |
+| POST   | `/store/products/{product_id}/reviews/`     | Create review          |
+| GET    | `/store/products/{product_id}/reviews/{id}` | Retrieve single review |
+| PUT    | `/store/products/{product_id}/reviews/{id}` | Update review          |
+| PATCH  | `/store/products/{product_id}/reviews/{id}` | Partial update         |
+| DELETE | `/store/products/{product_id}/reviews/{id}` | Delete review          |
+
+### Carts
+
+| Method | Endpoint            | Description                          |
+| ------ | ------------------- | ------------------------------------ |
+| POST   | `/store/carts/`     | Create a cart (returns cart UUID)    |
+| GET    | `/store/carts/{id}` | Retrieve cart with aggregated totals |
+| DELETE | `/store/carts/{id}` | Delete cart and its items            |
+
+### Cart Items (nested)
+
+| Method | Endpoint                            | Description                  |
+| ------ | ----------------------------------- | ---------------------------- |
+| GET    | `/store/carts/{cart_id}/items/`     | List items in cart           |
+| POST   | `/store/carts/{cart_id}/items/`     | Add item (merges quantities) |
+| PATCH  | `/store/carts/{cart_id}/items/{id}` | Update item quantity         |
+| DELETE | `/store/carts/{cart_id}/items/{id}` | Remove item from cart        |
+
+### Customers
+
+| Method | Endpoint                | Description                                  |
+| ------ | ----------------------- | -------------------------------------------- |
+| GET    | `/store/customers/`     | List customers (admin only)                  |
+| POST   | `/store/customers/`     | Create customer (admin only)                 |
+| GET    | `/store/customers/{id}` | Retrieve customer (admin only)               |
+| PUT    | `/store/customers/{id}` | Update customer (admin only)                 |
+| PATCH  | `/store/customers/{id}` | Partial update (admin only)                  |
+| DELETE | `/store/customers/{id}` | Delete customer (admin only)                 |
+| GET    | `/store/customers/me/`  | Get current authenticated customer's data    |
+| PUT    | `/store/customers/me/`  | Update current authenticated customer's data |
 
 ### Additional Endpoints
 

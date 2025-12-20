@@ -1,16 +1,20 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser, DjangoModelPermissions
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
-from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, DestroyModelMixin
+from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, UpdateModelMixin
 
 from store.pagination import DefaultPagination
 
-from .models import OrderItem, Product, Collection, Review, Cart, CartItem
+from .models import OrderItem, Product, Collection, Review, Cart, CartItem, Customer
 from store.filters import ProductFilter
-from .serializers import ProductSerializer, CollectionSerializer, ReviewSerializer,CartSerializer, CartItemSerializer,AddCartItemSerializer,UpdateCartItemSerializer
+from .serializers import ProductSerializer, CollectionSerializer, ReviewSerializer,CartSerializer, CartItemSerializer,AddCartItemSerializer,CustomerSerializer, UpdateCartItemSerializer
+
+from .permissions import IsAdminOrReadOnly, FullDjangoModelPermissions
 
 
 
@@ -27,6 +31,7 @@ class ProductViewSet(ModelViewSet):
     search_fields = ['title', 'description']  # for search functionality
     ordering_fields = ['title', 'price']  # for ordering functionality
     pagination_class = DefaultPagination    
+    permission_classes = [IsAdminOrReadOnly]
 
 
     def get_serializer_context(self):
@@ -49,6 +54,7 @@ class ProductViewSet(ModelViewSet):
 class CollectionViewSet(ModelViewSet):
     queryset = Collection.objects.all()
     serializer_class = CollectionSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -96,3 +102,29 @@ class CartItemViewSet(ModelViewSet):
     
     def get_serializer_context(self):
         return {'cart_id' : self.kwargs['cart_pk']}
+    
+class CustomerViewSet(ModelViewSet):
+    queryset = Customer.objects.all()
+    serializer_class = CustomerSerializer
+    permission_classes = [IsAdminUser]
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsAuthenticated()]
+    
+    
+    @action(detail=False, methods=['GET', 'PUT'], permission_classes=[IsAuthenticated])
+    def me(self, request):
+        (customer, created) = Customer.objects.get_or_create(user_id=request.user.id)
+        if request.method == 'GET':
+            serializer = CustomerSerializer(customer)
+            return Response(serializer.data)
+        elif request.method == 'PUT':
+            serializer = CustomerSerializer(customer, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+
+
+        
