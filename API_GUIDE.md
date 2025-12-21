@@ -492,6 +492,181 @@ curl -X POST http://127.0.0.1:8000/store/carts/abcd1234/items/ \
 
 ---
 
+## Orders
+
+### Permissions
+
+- **Create (POST)**: Authenticated users only — creates order for the current user
+- **List (GET)**: Authenticated users see their own orders; staff see all orders
+- **Update (PATCH)**: Staff/admin only — update payment status or other fields
+- **Delete (DELETE)**: Staff/admin only
+
+### 1. Create Order
+
+**Endpoint:** `POST /store/orders/`
+
+**Requires authentication** (JWT token in header)
+
+**Request:**
+
+```bash
+curl -X POST http://127.0.0.1:8000/store/orders/ \
+  -H "Content-Type: application/json" \
+  -H "Authorization: JWT <access_token>" \
+  -d '{
+    "items": [
+      {"product_id": 1, "quantity": 2},
+      {"product_id": 3, "quantity": 1}
+    ]
+  }'
+```
+
+**Response:** `201 Created`
+
+```json
+{
+  "id": 5,
+  "customer": 1,
+  "items": [
+    {
+      "id": 10,
+      "product": 1,
+      "quantity": 2,
+      "unit_price": "1999.00"
+    },
+    {
+      "id": 11,
+      "product": 3,
+      "quantity": 1,
+      "unit_price": "99.00"
+    }
+  ],
+  "payment_status": "P",
+  "placed_at": "2025-12-20T10:30:45.123456Z"
+}
+```
+
+### 2. List Orders
+
+**Endpoint:** `GET /store/orders/`
+
+**Requires authentication**. Regular users see only their own orders; admins see all.
+
+**Request:**
+
+```bash
+curl http://127.0.0.1:8000/store/orders/ \
+  -H "Authorization: JWT <access_token>"
+```
+
+**Response:** `200 OK`
+
+```json
+[
+  {
+    "id": 1,
+    "customer": 1,
+    "items": [
+      {
+        "id": 1,
+        "product": 1,
+        "quantity": 1,
+        "unit_price": "1999.00"
+      }
+    ],
+    "payment_status": "C",
+    "placed_at": "2025-12-15T14:20:30.000000Z"
+  },
+  {
+    "id": 5,
+    "customer": 1,
+    "items": [
+      {
+        "id": 10,
+        "product": 1,
+        "quantity": 2,
+        "unit_price": "1999.00"
+      },
+      {
+        "id": 11,
+        "product": 3,
+        "quantity": 1,
+        "unit_price": "99.00"
+      }
+    ],
+    "payment_status": "P",
+    "placed_at": "2025-12-20T10:30:45.123456Z"
+  }
+]
+```
+
+### 3. Get Single Order
+
+**Endpoint:** `GET /store/orders/{id}/`
+
+**Requires authentication**
+
+**Request:**
+
+```bash
+curl http://127.0.0.1:8000/store/orders/5/ \
+  -H "Authorization: JWT <access_token>"
+```
+
+**Response:** `200 OK` (same format as list item above)
+
+### 4. Update Order (Admin Only)
+
+**Endpoint:** `PATCH /store/orders/{id}/`
+
+**Requires admin/staff permissions**
+
+Update payment status:
+
+```bash
+curl -X PATCH http://127.0.0.1:8000/store/orders/5/ \
+  -H "Content-Type: application/json" \
+  -H "Authorization: JWT <admin_token>" \
+  -d '{
+    "payment_status": "C"
+  }'
+```
+
+**Payment Status Codes:**
+
+- `P` = Pending
+- `C` = Confirmed
+- `F` = Failed
+
+**Response:** `200 OK`
+
+```json
+{
+  "id": 5,
+  "customer": 1,
+  "items": [...],
+  "payment_status": "C",
+  "placed_at": "2025-12-20T10:30:45.123456Z"
+}
+```
+
+### 5. Delete Order (Admin Only)
+
+**Endpoint:** `DELETE /store/orders/{id}/`
+
+**Requires admin/staff permissions**
+
+**Request:**
+
+```bash
+curl -X DELETE http://127.0.0.1:8000/store/orders/5/ \
+  -H "Authorization: JWT <admin_token>"
+```
+
+**Response:** `204 No Content` (empty response body)
+
+---
+
 ## Customers
 
 - Admin-only CRUD: `/store/customers/` and `/store/customers/{id}`
@@ -504,7 +679,7 @@ curl -X POST http://127.0.0.1:8000/store/carts/abcd1234/items/ \
 
 ## Authentication (JWT)
 
-Provided by Djoser + Simple JWT.
+Provided by Djoser + Simple JWT. Uses a custom User model with unique email.
 
 ### Endpoints
 
@@ -515,6 +690,42 @@ Provided by Djoser + Simple JWT.
 | POST   | `/auth/jwt/verify/`  | Verify token validity         |
 | POST   | `/auth/users/`       | Register user                 |
 | GET    | `/auth/users/me/`    | Current user profile          |
+
+### User Registration
+
+**Important**: When a new user registers, a Customer profile is automatically created via Django signals.
+
+Register a new user:
+
+```bash
+curl -X POST http://127.0.0.1:8000/auth/users/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "johndoe",
+    "email": "john@example.com",
+    "password": "SecurePass123!",
+    "first_name": "John",
+    "last_name": "Doe"
+  }'
+```
+
+**Response**: `201 Created`
+
+```json
+{
+  "id": 1,
+  "username": "johndoe",
+  "email": "john@example.com",
+  "first_name": "John",
+  "last_name": "Doe"
+}
+```
+
+**Note**:
+
+- Both `username` and `email` must be unique
+- Password is automatically hashed
+- A Customer profile is created automatically (birth_date is optional and can be updated later via `/store/customers/me/`)
 
 ### Request examples
 

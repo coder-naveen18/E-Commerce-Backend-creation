@@ -55,7 +55,7 @@ class Customer(models.Model):
     # last_name = models.CharField(max_length=255)
     # email = models.EmailField(unique=True)
     phone = PhoneNumberField(blank=True, null=True)
-    birth_date = models.DateField()
+    birth_date = models.DateField(null=True, blank=True)
 
     membership = models.CharField(max_length=1, choices=typeChoice.choices, default=typeChoice.SILVER)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -93,7 +93,7 @@ class Order(models.Model):
         ]
 
 class OrderItem(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.PROTECT)
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='orderitems')
     quantity = models.PositiveSmallIntegerField()
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)

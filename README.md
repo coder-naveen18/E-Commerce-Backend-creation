@@ -65,6 +65,8 @@ E-commerce Backend/
 │   ├── views.py            # API views (ViewSets)
 │   ├── urls.py             # Store URL routes
 │   ├── admin.py            # Admin interface configuration
+│   ├── signals.py          # Django signals (auto Customer creation)
+│   ├── apps.py             # App configuration (registers signals)
 │   └── migrations/         # Database migrations
 │
 ├── likes/                  # Likes functionality app
@@ -79,6 +81,20 @@ E-commerce Backend/
 ```
 
 ## 🗄 Database Models
+
+### User (Custom)
+
+Custom user model extending Django's AbstractUser with unique email requirement.
+
+```python
+- username: CharField (inherited, unique)
+- email: EmailField (unique, required)
+- first_name: CharField (inherited)
+- last_name: CharField (inherited)
+- password: CharField (inherited, hashed)
+```
+
+**Auth Model**: Set as `AUTH_USER_MODEL = 'core.User'` in settings.
 
 ### Product
 
@@ -105,16 +121,16 @@ Product categorization with optional featured product.
 
 ### Customer
 
-Customer information with membership tiers.
+Customer information with membership tiers. Automatically created when a new User registers.
 
 ```python
-- first_name: CharField(max_length=255)
-- last_name: CharField(max_length=255)
-- email: EmailField (unique)
+- user: OneToOneField to AUTH_USER_MODEL (CASCADE)
 - phone: PhoneNumberField (optional)
-- birth_date: DateField
-- membership: CharField (Gold/Silver/Bronze)
+- birth_date: DateField (optional)
+- membership: CharField (Gold/Silver/Bronze, default: Silver)
 ```
+
+**Note**: Customer profiles are automatically created via Django signals when a new User is registered through `/auth/users/`.
 
 ### Order
 
@@ -247,6 +263,16 @@ Promotional campaigns and discounts.
 | POST   | `/store/carts/{cart_id}/items/`     | Add item (merges quantities) |
 | PATCH  | `/store/carts/{cart_id}/items/{id}` | Update item quantity         |
 | DELETE | `/store/carts/{cart_id}/items/{id}` | Remove item from cart        |
+
+### Orders
+
+| Method | Endpoint              | Description                                 |
+| ------ | --------------------- | ------------------------------------------- |
+| GET    | `/store/orders/`      | List orders (users see own; admins see all) |
+| POST   | `/store/orders/`      | Create order (authenticated users)          |
+| GET    | `/store/orders/{id}/` | Retrieve order (admin or order owner)       |
+| PATCH  | `/store/orders/{id}/` | Update order status (admin only)            |
+| DELETE | `/store/orders/{id}/` | Delete order (admin only)                   |
 
 ### Customers
 
