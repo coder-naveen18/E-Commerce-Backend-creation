@@ -7,15 +7,11 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, UpdateModelMixin
-
-from store.pagination import DefaultPagination
-
 from .models import OrderItem, Product, Collection, Review, Cart, CartItem, Customer, Order, OrderItem
-from store.filters import ProductFilter
-from .serializers import ProductSerializer, CollectionSerializer, ReviewSerializer,CartSerializer, CartItemSerializer,AddCartItemSerializer,OrderSerializer, CustomerSerializer, UpdateCartItemSerializer, CreateOrderSerializer,UpdateOrderSerializer
-
 from .permissions import IsAdminOrReadOnly, FullDjangoModelPermissions
-
+from store.pagination import DefaultPagination
+from store.filters import ProductFilter
+from .serializers import ProductSerializer,CollectionSerializer, ReviewSerializer,CartSerializer, CartItemSerializer,AddCartItemSerializer,OrderSerializer, CustomerSerializer, UpdateCartItemSerializer, CreateOrderSerializer,UpdateOrderSerializer
 
 
 # Combining Product and ProductDetail class based views using the ModelViewSet for removing redundancy
@@ -46,7 +42,6 @@ class ProductViewSet(ModelViewSet):
             )
         return super().destroy(request, *args, **kwargs)
 
-    
 
 # Combining the CollectionList and CollectionDetail class based views
 # collection list endpoint ---> store/collections/

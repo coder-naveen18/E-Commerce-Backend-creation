@@ -1,8 +1,8 @@
+from decimal import Decimal
+from django.db import  transaction
 from rest_framework import serializers
 from store.models import Product, Collection, Review, Cart, CartItem, Customer, Order, OrderItem
 from store.signals import order_created
-from decimal import Decimal
-from django.db import  transaction
 
 # Product Serializer with price_with_tax field
 class ProductSerializer(serializers.ModelSerializer):

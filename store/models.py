@@ -2,8 +2,8 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.conf import settings
 from django.contrib import admin
-import uuid
 from phonenumber_field.modelfields import PhoneNumberField
+import uuid
 
 def generate_uuid_hex():
     return uuid.uuid4().hex  # 32 chars, no hyphens
