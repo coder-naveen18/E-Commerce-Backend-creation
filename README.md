@@ -72,7 +72,7 @@ E-commerce Backend/
 ├── likes/                  # Likes functionality app
 ├── tags/                   # Tags functionality app
 ├── playground/             # Testing/experimental app
-├── store_custom/           # Custom store extensions
+├── core/                   # core store extensions
 │
 ├── manage.py               # Django management script
 ├── db.sqlite3              # SQLite database
