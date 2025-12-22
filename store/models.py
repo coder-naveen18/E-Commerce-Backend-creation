@@ -5,6 +5,8 @@ from django.contrib import admin
 from phonenumber_field.modelfields import PhoneNumberField
 import uuid
 
+from store.validatores import validate_file_size
+
 def generate_uuid_hex():
     return uuid.uuid4().hex  # 32 chars, no hyphens
 
@@ -34,7 +36,6 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=6, decimal_places=2, validators=[MinValueValidator(0)])
     inventory = models.IntegerField(validators=[MinValueValidator(0)])
     last_update = models.DateTimeField(auto_now=True)
-
     collection = models.ForeignKey(Collection, on_delete=models.PROTECT, related_name='products')
     promotions = models.ManyToManyField(Promotion, blank=True)
 
@@ -44,6 +45,11 @@ class Product(models.Model):
     class Meta:
         ordering = ['title']    
     
+class ProductImage(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='store/images/', validators=[validate_file_size])
+    alt_text = models.CharField(max_length=255, blank=True)
+
 
 class Customer(models.Model):
     class typeChoice(models.TextChoices):

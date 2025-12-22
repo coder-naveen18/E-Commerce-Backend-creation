@@ -7,18 +7,18 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, UpdateModelMixin
-from .models import OrderItem, Product, Collection, Review, Cart, CartItem, Customer, Order, OrderItem
+from .models import OrderItem, Product, Collection, ProductImage, Review, Cart, CartItem, Customer, Order, OrderItem
 from .permissions import IsAdminOrReadOnly, FullDjangoModelPermissions
 from store.pagination import DefaultPagination
 from store.filters import ProductFilter
-from .serializers import ProductSerializer,CollectionSerializer, ReviewSerializer,CartSerializer, CartItemSerializer,AddCartItemSerializer,OrderSerializer, CustomerSerializer, UpdateCartItemSerializer, CreateOrderSerializer,UpdateOrderSerializer
+from .serializers import ProductSerializer,CollectionSerializer, ReviewSerializer,CartSerializer, CartItemSerializer,AddCartItemSerializer,OrderSerializer, CustomerSerializer, UpdateCartItemSerializer, CreateOrderSerializer,UpdateOrderSerializer, ProductImageSerializer
 
 
 # Combining Product and ProductDetail class based views using the ModelViewSet for removing redundancy
 # product list endpoint ---> store/products/
 # product detail endpoint ---> store/products/{id}/
 class ProductViewSet(ModelViewSet):
-    queryset = Product.objects.all()
+    queryset = Product.objects.prefetch_related('images').all()
     serializer_class = ProductSerializer
 # applying filtering with django-filter 
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -41,6 +41,15 @@ class ProductViewSet(ModelViewSet):
                     status=status.HTTP_405_METHOD_NOT_ALLOWED
             )
         return super().destroy(request, *args, **kwargs)
+
+class ProductImageViewSet(ModelViewSet):
+    serializer_class = ProductImageSerializer
+
+    def get_queryset(self):
+        return ProductImage.objects.filter(product_id=self.kwargs['product_pk'])
+    
+    def get_serializer_context(self):
+        return {'product_id': self.kwargs['product_pk']}
 
 
 # Combining the CollectionList and CollectionDetail class based views

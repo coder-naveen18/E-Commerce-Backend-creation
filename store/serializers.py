@@ -1,21 +1,34 @@
 from decimal import Decimal
 from django.db import  transaction
 from rest_framework import serializers
-from store.models import Product, Collection, Review, Cart, CartItem, Customer, Order, OrderItem
+from store.models import Product, Collection, Review, Cart, CartItem, Customer, Order, OrderItem, ProductImage
 from store.signals import order_created
+
+
+class ProductImageSerializer(serializers.ModelSerializer):
+
+    def create(self, validated_data):
+        product_id = self.context['product_id']
+        return ProductImage.objects.create(product_id=product_id, **validated_data)
+    class Meta:
+        model = ProductImage
+        fields = ['id', 'image']
+
 
 # Product Serializer with price_with_tax field
 class ProductSerializer(serializers.ModelSerializer):
     # assuming a tax rate of 20%
     price_with_tax = serializers.SerializerMethodField(method_name='calculate_price_with_tax') 
-
+    images = ProductImageSerializer(many=True, read_only=True)
     class Meta:
         model = Product
-        fields = ['id', 'title', 'description', 'price', 'inventory', 'collection', 'price_with_tax']
+        fields = ['id', 'title', 'description', 'price', 'inventory', 'collection', 'price_with_tax', 'images']
 
     def calculate_price_with_tax(self, product: Product):
         return product.price * Decimal(1.2)
     
+
+
 # Collection Serializer with products_count field
 class CollectionSerializer(serializers.ModelSerializer):
     products_count = serializers.SerializerMethodField(method_name='get_products_count')
