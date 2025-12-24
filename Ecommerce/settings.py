@@ -155,3 +155,11 @@ DJOSER = {
         'current_user': 'core.serializers.UserSerializer',
     }
 }
+
+# Setting the Email Backend to Console for Development
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND')
+EMAIL_HOST =  os.getenv('EMAIL_HOST')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+EMAIL_PORT = os.getenv('EMAIL_PORT')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')

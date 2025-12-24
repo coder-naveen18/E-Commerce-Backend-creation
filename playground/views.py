@@ -1,11 +1,50 @@
+from django.http import HttpResponse
 from django.shortcuts import render
-from store.models import Product, Order
-from django.contrib.contenttypes.models import ContentType
-from tags.models import TaggedItem
+from django.core.mail import send_mail, mail_admins, BadHeaderError, EmailMessage
+from templated_mail.mail import BaseEmailMessage
 
-# Create your views here.
 
 def product(request):
+    try:
+        message = BaseEmailMessage(
+            template_name='emails/hell0.html',
+            context={'name': 'Naveen Sahu'}
+        )
+        message.send(to=['naveensahu18@gmail.com'])
+    except BadHeaderError:
+        pass
+    return HttpResponse('Invalid header found.')
+
+# Create your views here.
+# def product(request):
+#     try:
+#         send_mail(
+#         'subject from django',
+#         'Hello there. This is a test email sent from a Django application.',
+#         'codersahu18@gmail.com',
+#         ['naveensahu18@gmail.com'],
+#         fail_silently=False,
+#         )
+#     except BadHeaderError:
+#         pass
+#     return HttpResponse('Invalid header found.')
+
+# def product(request):
+#     try:
+#         message = EmailMessage(
+#             'subject from django',
+#         'Hello there. This is a test email sent from a Django application.',
+#         'codersahu18@gmail.com',
+#         ['naveensahu18@gmail.com'],
+#         )
+#         message.attach_file('playground/static/images/Screenshot.png')
+#         message.send()
+
+#     except BadHeaderError:
+#         pass
+#     return HttpResponse('Invalid header found.')
+
+# def product(request):
     # query_set = Product.objects.all()
 
     # for product in query_set:
@@ -45,7 +84,9 @@ def product(request):
     # 3. Use this `ContentType` to filter `TaggedItem` objects where the `content_type` matches and `object_id` is the provided ID.     
     # 4. This method returns all tags associated with the specified object.
     
-    queryset = TaggedItem.objects.get_tags_for(Product, 1)
+    # queryset = TaggedItem.objects.get_tags_for(Product, 1)
 
 
-    return render(request, 'index.html', {'tags': list(queryset)})
+    # return render(request, 'index.html', {'tags': list(queryset)})
+
+
