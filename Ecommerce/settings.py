@@ -163,3 +163,18 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 EMAIL_PORT = os.getenv('EMAIL_PORT')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
+
+
+# Admins Configuration for emailing error logs
+ADMINS = [
+    ('Admin', 'admin@gmail.com')
+]
+
+CELERY_BROKER_URL = 'redis://localhost:6379/1'
+CELERY_BEAT_SCHEDULE = {
+    'notify-customer-every-minute': {
+        'task': 'playground.tasks.notifiy_customer',
+        'schedule': 60.0, # every minute
+        'args': ("This is a periodic notification to the customer.",)
+    },
+}
