@@ -13,9 +13,11 @@ http://127.0.0.1:8000
 - [Products API](#products-api)
 - [Product Query Options](#product-query-options)
 - [Product Reviews](#product-reviews)
+- [Product Images](#product-images)
 - [Collections API](#collections-api)
 - [Carts](#carts)
 - [Cart Items](#cart-items)
+- [Orders](#orders)
 - [Customers](#customers)
 - [Authentication (JWT)](#authentication-jwt)
 - [Common Response Codes](#common-response-codes)
@@ -245,7 +247,8 @@ curl -X DELETE http://127.0.0.1:8000/store/products/15/
 - **Ordering**
   - `/store/products/?ordering=price` or `/store/products/?ordering=-title`
 - **Pagination** (page-number)
-  - `/store/products/?page=2&page_size=20` (max `page_size` is 100)
+  - Default page size: 10
+  - Override with `/store/products/?page=2&page_size=20` (max `page_size` is 100)
 
 Combine them as needed, for example:
 
@@ -438,6 +441,38 @@ Use `PUT`, `PATCH`, or `DELETE` on `/store/products/{product_id}/reviews/{id}/`.
 
 ---
 
+## Product Images
+
+Nested under a product using `product_id`.
+
+### 1. List Images
+
+`GET /store/products/{product_id}/images/`
+
+```bash
+curl http://127.0.0.1:8000/store/products/1/images/
+```
+
+### 2. Upload Image
+
+`POST /store/products/{product_id}/images/`
+
+```bash
+curl -X POST http://127.0.0.1:8000/store/products/1/images/ \
+  -H "Authorization: JWT <access_token>" \
+  -F "image=@/path/to/photo.jpg"
+```
+
+- Multipart form-data required.
+- Max file size: 500 KB (otherwise 400 validation error).
+- Stored under `media/store/images/`.
+
+### 3. Delete Image
+
+`DELETE /store/products/{product_id}/images/{id}/`
+
+---
+
 ## Carts
 
 ### 1. Create Cart
@@ -496,16 +531,13 @@ curl -X POST http://127.0.0.1:8000/store/carts/abcd1234/items/ \
 
 ### Permissions
 
-- **Create (POST)**: Authenticated users only — creates order for the current user
+- **Create (POST)**: Authenticated users only — creates order for the current user from a cart
 - **List (GET)**: Authenticated users see their own orders; staff see all orders
-- **Update (PATCH)**: Staff/admin only — update payment status or other fields
-- **Delete (DELETE)**: Staff/admin only
+- **Update/Delete (PATCH/DELETE)**: Staff/admin only
 
-### 1. Create Order
+### 1. Create Order from Cart
 
 **Endpoint:** `POST /store/orders/`
-
-**Requires authentication** (JWT token in header)
 
 **Request:**
 
@@ -521,12 +553,17 @@ curl -X POST http://127.0.0.1:8000/store/orders/ \
   }'
 ```
 
+- Cart must exist and contain at least one item; otherwise a 400 validation error is returned.
+- The cart is deleted after order creation.
+
 **Response:** `201 Created`
 
 ```json
 {
   "id": 5,
   "customer": 1,
+  "placed_at": "2025-12-20T10:30:45.123456Z",
+  "payment_status": "P",
   "items": [
     {
       "id": 10,
@@ -540,115 +577,30 @@ curl -X POST http://127.0.0.1:8000/store/orders/ \
       "quantity": 1,
       "unit_price": "99.00"
     }
-  ],
-  "payment_status": "P",
-  "placed_at": "2025-12-20T10:30:45.123456Z"
+  ]
 }
 ```
 
 ### 2. List Orders
 
-**Endpoint:** `GET /store/orders/`
-
-**Requires authentication**. Regular users see only their own orders; admins see all.
-
-**Request:**
-
-```bash
-curl http://127.0.0.1:8000/store/orders/ \
-  -H "Authorization: JWT <access_token>"
-```
-
-**Response:** `200 OK`
-
-```json
-[
-  {
-    "id": 1,
-    "customer": 1,
-    "items": [
-      {
-        "id": 1,
-        "product": 1,
-        "quantity": 1,
-        "unit_price": "1999.00"
-      }
-    ],
-    "payment_status": "C",
-    "placed_at": "2025-12-15T14:20:30.000000Z"
-  },
-  {
-    "id": 5,
-    "customer": 1,
-    "items": [
-      {
-        "id": 10,
-        "product": 1,
-        "quantity": 2,
-        "unit_price": "1999.00"
-      },
-      {
-        "id": 11,
-        "product": 3,
-        "quantity": 1,
-        "unit_price": "99.00"
-      }
-    ],
-    "payment_status": "P",
-    "placed_at": "2025-12-20T10:30:45.123456Z"
-  }
-]
-```
+`GET /store/orders/` with `Authorization: JWT <token>` header. Returns only the caller's orders unless the user is staff.
 
 ### 3. Get Single Order
 
-**Endpoint:** `GET /store/orders/{id}/`
-
-**Requires authentication**
-
-**Request:**
-
-```bash
-curl http://127.0.0.1:8000/store/orders/5/ \
-  -H "Authorization: JWT <access_token>"
-```
-
-**Response:** `200 OK` (same format as list item above)
+`GET /store/orders/{id}/` with `Authorization: JWT <token>`.
 
 ### 4. Update Order (Admin Only)
 
-**Endpoint:** `PATCH /store/orders/{id}/`
-
-**Requires admin/staff permissions**
-
-Update payment status:
+`PATCH /store/orders/{id}/` to change `payment_status`.
 
 ```bash
 curl -X PATCH http://127.0.0.1:8000/store/orders/5/ \
   -H "Content-Type: application/json" \
   -H "Authorization: JWT <admin_token>" \
-  -d '{
-    "payment_status": "C"
-  }'
+  -d '{ "payment_status": "C" }'
 ```
 
-**Payment Status Codes:**
-
-- `P` = Pending
-- `C` = Confirmed
-- `F` = Failed
-
-**Response:** `200 OK`
-
-```json
-{
-  "id": 5,
-  "customer": 1,
-  "items": [...],
-  "payment_status": "C",
-  "placed_at": "2025-12-20T10:30:45.123456Z"
-}
-```
+Payment status codes: `P` (Pending), `C` (Confirmed), `F` (Failed).
 
 ### 5. Delete Order (Admin Only)
 
@@ -882,9 +834,9 @@ response = requests.delete('http://127.0.0.1:8000/store/products/1/')
 
 ## Next Steps
 
-- Add authentication headers when auth is implemented
-- Implement pagination for large result sets
-- Add filtering and searching capabilities
-- Explore additional endpoints (tags, likes, playground)
+- Use JWT headers for protected endpoints (`Authorization: JWT <access_token>`)
+- Tune pagination via `page`/`page_size` and filtering/searching params on products
+- Attach product media via the nested images endpoint before publishing
+- Explore additional endpoints (tags, likes, playground) for integrations
 
 For more details, see the main [README.md](README.md).

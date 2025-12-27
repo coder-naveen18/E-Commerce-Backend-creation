@@ -170,6 +170,7 @@ ADMINS = [
     ('Admin', 'admin@gmail.com')
 ]
 
+# Background Tasks with Celery
 CELERY_BROKER_URL = 'redis://localhost:6379/1'
 CELERY_BEAT_SCHEDULE = {
     'notify-customer-every-minute': {

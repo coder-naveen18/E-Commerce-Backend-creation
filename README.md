@@ -17,36 +17,40 @@ A comprehensive Django REST Framework-based backend system for an e-commerce pla
 
 ## ✨ Features
 
-- **Product Management**: Full CRUD operations for products with pricing, inventory, and descriptions
+- **Product Management**: Full CRUD with pricing, inventory, descriptions, and per-product image gallery (500 KB max per image)
 - **Collection Management**: Organize products into collections with featured products
 - **Customer Management**: Track customer information with membership tiers (Gold, Silver, Bronze)
 - **Catalog Discovery**: Filtering (collection, price range), search (title, description), ordering (title, price), and page-number pagination
-- **Order Management**: Process orders with payment status tracking
-- **Shopping Cart**: Cart and cart item management for customer shopping sessions, including quantity merging
+- **Order Management**: Create orders from an existing cart via `cart_id`; payment status lifecycle (Pending/Confirm/Failed) and `order_created` signal hook
+- **Shopping Cart**: Hex-based cart IDs, cart item management, and quantity merging
 - **Product Reviews**: Nested reviews per product with clean URL structure
+- **Product Media**: Nested image upload endpoint under products with size validation and media storage
 - **Customer Profile Endpoint**: `customers/me/` for authenticated self-service profile read/update
 - **Authentication**: JWT auth via Djoser + Simple JWT (`/auth/jwt/create`, `/auth/jwt/refresh`, `/auth/jwt/verify`)
 - **Promotion System**: Apply promotions and discounts to products
 - **Address Management**: One-to-one relationship for customer addresses
 - **Phone Number Support**: International phone number validation using phonenumber_field
-- **Optimized Queries**: Uses `select_related()` to prevent N+1 query problems
-- **Data Validation**: Comprehensive validation using Django REST Framework serializers
+- **Optimized Queries**: Uses `select_related()`/`prefetch_related()` to prevent N+1 query problems
+- **Background Tasks**: Celery-ready with Redis broker and sample notification task
+- **CORS + Media**: CORS origins configurable via environment; media served from `/media/`
 - **Protection Rules**: Prevents deletion of products/collections associated with orders
 
 ## 🛠 Tech Stack
 
 - **Framework**: Django 6.0+
 - **API**: Django REST Framework
-- **Database**: MySQL (development) - easily configurable for PostgreSQL/In-build django Sqlite
+- **Database**: Configurable via environment (tested with MySQL; SQLite/PostgreSQL ready)
 - **Utilities**:
   - `django-extensions` - Additional management commands
   - `django-debug-toolbar` - Performance debugging
+  - `django-filter` - Query filtering for list endpoints
+  - `drf-nested-routers` - Nested routing for cart items, product reviews, and product images
+  - `djoser` + `djangorestframework-simplejwt` - Auth endpoints and JWT issuance/refresh/verify
   - `phonenumber_field` - International phone number validation
   - `python-dotenv` - Environment variable management
-    - `django-filter` - Query filtering for list endpoints
-    - `drf-nested-routers` - Nested routing for cart items and product reviews
-    - `djoser` - Auth endpoints and user management
-    - `djangorestframework-simplejwt` - JWT issuance/refresh/verify
+  - `django-cors-headers` - CORS handling
+  - `celery` + Redis (broker) - Background task execution
+  - `Pillow` - Image handling for product media
 
 ## 📁 Project Structure
 
@@ -110,6 +114,16 @@ Core product model with pricing, inventory tracking, and relationships.
 - promotions: ManyToManyField to Promotion
 ```
 
+### ProductImage
+
+Per-product media with validation and optional alt text.
+
+```python
+- product: ForeignKey to Product (CASCADE)
+- image: ImageField (uploads to `media/store/images/`, max 500 KB)
+- alt_text: CharField(max_length=255, optional)
+```
+
 ### Collection
 
 Product categorization with optional featured product.
@@ -159,12 +173,14 @@ Shopping cart functionality.
 
 ```python
 Cart:
-- created_at: DateTimeField (auto_now_add)
+- id: CharField(primary_key, 32-char hex, no hyphens)
+- created_at: DateTimeField(auto_now_add)
 
 CartItem:
 - cart: ForeignKey to Cart (CASCADE)
 - product: ForeignKey to Product (CASCADE)
 - quantity: PositiveSmallIntegerField
+# unique_together on (cart, product) to merge quantities
 ```
 
 ### Address
@@ -247,6 +263,19 @@ Promotional campaigns and discounts.
 | PATCH  | `/store/products/{product_id}/reviews/{id}` | Partial update         |
 | DELETE | `/store/products/{product_id}/reviews/{id}` | Delete review          |
 
+### Product Images (nested)
+
+| Method | Endpoint                                    | Description                        |
+| ------ | ------------------------------------------- | ---------------------------------- |
+| GET    | `/store/products/{product_id}/images/`      | List all images for a product      |
+| POST   | `/store/products/{product_id}/images/`      | Upload image (multipart form-data) |
+| DELETE | `/store/products/{product_id}/images/{id}/` | Delete an image                    |
+
+**Notes**
+
+- Max file size: 500 KB (validation error otherwise)
+- Upload path: `media/store/images/`
+
 ### Carts
 
 | Method | Endpoint            | Description                          |
@@ -254,6 +283,10 @@ Promotional campaigns and discounts.
 | POST   | `/store/carts/`     | Create a cart (returns cart UUID)    |
 | GET    | `/store/carts/{id}` | Retrieve cart with aggregated totals |
 | DELETE | `/store/carts/{id}` | Delete cart and its items            |
+
+**Notes**
+
+- Cart IDs are 32-character hex strings (no hyphens). Keep the returned ID for subsequent item/order operations.
 
 ### Cart Items (nested)
 
@@ -269,10 +302,22 @@ Promotional campaigns and discounts.
 | Method | Endpoint              | Description                                 |
 | ------ | --------------------- | ------------------------------------------- |
 | GET    | `/store/orders/`      | List orders (users see own; admins see all) |
-| POST   | `/store/orders/`      | Create order (authenticated users)          |
+| POST   | `/store/orders/`      | Create order from an existing cart          |
 | GET    | `/store/orders/{id}/` | Retrieve order (admin or order owner)       |
 | PATCH  | `/store/orders/{id}/` | Update order status (admin only)            |
 | DELETE | `/store/orders/{id}/` | Delete order (admin only)                   |
+
+**Create Order Payload**
+
+```json
+{
+  "cart_id": "<cart_hex_id>"
+}
+```
+
+- Requires authentication (JWT).
+- Copies items from the cart into the order, then deletes the cart.
+- Emits an `order_created` signal for downstream listeners.
 
 ### Customers
 
@@ -286,6 +331,8 @@ Promotional campaigns and discounts.
 | DELETE | `/store/customers/{id}` | Delete customer (admin only)                 |
 | GET    | `/store/customers/me/`  | Get current authenticated customer's data    |
 | PUT    | `/store/customers/me/`  | Update current authenticated customer's data |
+
+**Note**: In the current implementation, `GET` on `/store/customers/` is open, while write operations require authentication. Adjust `CustomerViewSet.get_permissions` if stricter access is desired.
 
 ### Additional Endpoints
 
@@ -320,15 +367,39 @@ Promotional campaigns and discounts.
 3. **Install dependencies**
 
    ```powershell
-   pip install django djangorestframework django-extensions django-debug-toolbar phonenumber-field python-dotenv
+    pip install django djangorestframework djangorestframework-simplejwt djoser django-filter django-extensions django-debug-toolbar drf-nested-routers phonenumber_field python-dotenv mysqlclient
+    pip install -r requirements.txt
+    pip install django-cors-headers celery redis Pillow  # extras referenced in settings/code
    ```
 
 4. **Create `.env` file**
+
+   Minimal (SQLite):
 
    ```env
    SECRET_KEY=your-secret-key-here
    DEBUG=True
    ALLOWED_HOSTS=localhost,127.0.0.1
+   DB_ENGINE=django.db.backends.sqlite3
+   DB_NAME=db.sqlite3
+   CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+   EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+   ```
+
+   MySQL example:
+
+   ```env
+   SECRET_KEY=your-secret-key-here
+   DEBUG=False
+   ALLOWED_HOSTS=localhost,127.0.0.1
+   DB_ENGINE=django.db.backends.mysql
+   DB_NAME=ecommerce_db
+   DB_USER=ecommerce
+   DB_PASSWORD=secure-password
+   DB_HOST=localhost
+   DB_PORT=3306
+   CORS_ALLOWED_ORIGINS=http://localhost:3000
+   EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
    ```
 
 5. **Run migrations**
@@ -347,13 +418,12 @@ Promotional campaigns and discounts.
 
 ### Environment Variables
 
-Create a `.env` file in the project root:
+Key variables pulled from `.env`:
 
-```env
-SECRET_KEY=your-django-secret-key
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-```
+- `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`
+- `DB_ENGINE`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`
+- `CORS_ALLOWED_ORIGINS` (comma-separated origins)
+- `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_PORT`, `DEFAULT_FROM_EMAIL`
 
 ### Database Configuration
 
@@ -392,6 +462,15 @@ Access the application at:
 python manage.py runserver 8080
 ```
 
+### Background workers (Celery)
+
+Requires a running Redis broker (`redis://localhost:6379/1` by default).
+
+```powershell
+celery -A Ecommerce worker -l info
+celery -A Ecommerce beat -l info
+```
+
 ## 📊 Data Population
 
 ### Populate Cart Data
@@ -410,6 +489,14 @@ This script will:
 - Set realistic quantities (1-5 units per item)
 
 **Note**: Ensure you have product data in your database before running this script.
+
+### Seed sample catalog data
+
+```powershell
+python manage.py seed_db
+```
+
+Executes `store/management/commands/seed.sql` to load baseline collections/products.
 
 ### Manual Data Entry
 
@@ -512,6 +599,11 @@ Collections cannot be deleted if they contain any products:
 if Product.objects.filter(collection_id=pk).count() > 0:
     return Error: "Collection cannot be deleted"
 ```
+
+### Product Image Validation
+
+- Uploads larger than 500 KB are rejected by the validator.
+- Files are stored under `media/store/images/`.
 
 ### Model Relationships & Cascade Behavior
 

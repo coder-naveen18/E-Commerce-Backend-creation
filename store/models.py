@@ -57,9 +57,6 @@ class Customer(models.Model):
         SILVER = 'S', 'Silver'
         BRONZE = 'B', 'Bronze'
 
-    # first_name = models.CharField(max_length=255)
-    # last_name = models.CharField(max_length=255)
-    # email = models.EmailField(unique=True)
     phone = PhoneNumberField(blank=True, null=True)
     birth_date = models.DateField(null=True, blank=True)
 

@@ -12,15 +12,15 @@ def product(request):
 
 
 #  sending email using templated_mail package
-# def product(request):
-#     try:
-#         message = BaseEmailMessage(
-#             template_name='emails/hello.html',
-#             context={'name': 'Naveen Sahu'}
-#         )
-#         message.send(to=['naveensahu18@gmail.com'])
-#     except BadHeaderError:
-#         pass
-#     return HttpResponse('Invalid header found.')
+def sendEmail(request):
+    try:
+        message = BaseEmailMessage(
+            template_name='emails/hello.html',
+            context={'name': 'Naveen Sahu'}
+        )
+        message.send(to=['naveensahu18@gmail.com'])
+    except BadHeaderError:
+        pass
+    return HttpResponse('Invalid header found.')
 
 
