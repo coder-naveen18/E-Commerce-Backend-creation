@@ -1,13 +1,10 @@
 from django.http import HttpResponse
 from django.core.mail import BadHeaderError
 from templated_mail.mail import BaseEmailMessage
-
-
-
-from .tasks import notifiy_customer
+from .tasks import notify_customer
 
 def product(request):
-    notifiy_customer.delay("Your product has been shipped!")
+    notify_customer.delay("Your product has been shipped!")
     return HttpResponse('Task to notify customer has been initiated.')
 
 

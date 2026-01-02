@@ -172,6 +172,8 @@ ADMINS = [
 
 # Background Tasks with Celery
 CELERY_BROKER_URL = 'redis://localhost:6379/1'
+# Use solo pool for Windows compatibility (no multiprocessing)
+CELERY_TASK_ALWAYS_EAGER = False  # Set to True for synchronous execution in development
 CELERY_BEAT_SCHEDULE = {
     'notify-customer-every-minute': {
         'task': 'playground.tasks.notify_customer',
