@@ -174,7 +174,7 @@ ADMINS = [
 CELERY_BROKER_URL = 'redis://localhost:6379/1'
 CELERY_BEAT_SCHEDULE = {
     'notify-customer-every-minute': {
-        'task': 'playground.tasks.notifiy_customer',
+        'task': 'playground.tasks.notify_customer',
         'schedule': 60.0, # every minute
         'args': ("This is a periodic notification to the customer.",)
     },
