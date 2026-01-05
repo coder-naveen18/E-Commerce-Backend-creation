@@ -6,7 +6,7 @@ import pytest
 @pytest.fixture
 def create_collection(api_client):
     def do_create_collection(collection):
-        return api_client.post('/store/collections', collection)
+        return api_client.post('/store/collections/', collection)
     return do_create_collection
 
 @pytest.mark.django_db
@@ -27,7 +27,8 @@ class TestCreateCollection:
     def test_if_user_is_not_admin_returns_403(self, api_client, create_collection):
         
         # client = APIClient() ---> in-place of this we can apply the fixture function as a parameter in the function 
-        api_client.force_authenticate(user={})
+        user = User(is_staff=False)
+        api_client.force_authenticate(user=user)
         response = create_collection({'title': 'a'})
         # response = api_client.post('/store/collections/', {'title': 'a'}) ---> it is also repetative so we are now using fixture mentioned above.
         assert response.status_code == status.HTTP_403_FORBIDDEN

@@ -26,6 +26,7 @@ admin.site.site_title = "Ecommerce Admin Portal"
 admin.site.index_title = "Welcome to Ecommerce Admin Portal"
 
 urlpatterns = [
+    path('', include('core.urls')),
     path('admin/', admin.site.urls),
     path('store/', include('store.urls')),
     path('tags/', include('tags.urls')),
