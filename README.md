@@ -12,6 +12,7 @@ A comprehensive Django REST Framework-based backend system for an e-commerce pla
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Running the Project](#running-the-project)
+- [Email Verification](#email-verification)
 - [Data Population](#data-population)
 - [API Documentation](#api-documentation)
 
@@ -27,6 +28,7 @@ A comprehensive Django REST Framework-based backend system for an e-commerce pla
 - **Product Media**: Nested image upload endpoint under products with size validation and media storage
 - **Customer Profile Endpoint**: `customers/me/` for authenticated self-service profile read/update
 - **Authentication**: JWT auth via Djoser + Simple JWT (`/auth/jwt/create`, `/auth/jwt/refresh`, `/auth/jwt/verify`)
+- **Email Verification**: Token-based email verification with 48-hour expiry; orders blocked until email verified
 - **Promotion System**: Apply promotions and discounts to products
 - **Address Management**: One-to-one relationship for customer addresses
 - **Phone Number Support**: International phone number validation using phonenumber_field
@@ -93,6 +95,9 @@ Custom user model extending Django's AbstractUser with unique email requirement.
 ```python
 - username: CharField (inherited, unique)
 - email: EmailField (unique, required)
+- email_verified: BooleanField (default=False)
+- email_verification_token: CharField (32-char hex, nullable)
+- token_created_at: DateTimeField (nullable)
 - first_name: CharField (inherited)
 - last_name: CharField (inherited)
 - password: CharField (inherited, hashed)
@@ -207,17 +212,24 @@ Promotional campaigns and discounts.
 
 ### Authentication (Djoser + Simple JWT)
 
-| Method | Endpoint              | Description                    |
-| ------ | --------------------- | ------------------------------ |
-| POST   | `/auth/jwt/create/`   | Obtain access/refresh tokens   |
-| POST   | `/auth/jwt/refresh/`  | Refresh access token           |
-| POST   | `/auth/jwt/verify/`   | Verify access or refresh token |
-| POST   | `/auth/users/`        | Register user                  |
-| GET    | `/auth/users/me/`     | Get current user               |
-| POST   | `/auth/token/login/`  | Obtain DRF token (if enabled)  |
-| POST   | `/auth/token/logout/` | Revoke DRF token (if enabled)  |
+| Method | Endpoint                      | Description                      |
+| ------ | ----------------------------- | -------------------------------- |
+| POST   | `/auth/jwt/create/`           | Obtain access/refresh tokens     |
+| POST   | `/auth/jwt/refresh/`          | Refresh access token             |
+| POST   | `/auth/jwt/verify/`           | Verify access or refresh token   |
+| POST   | `/auth/users/`                | Register user                    |
+| GET    | `/auth/users/me/`             | Get current user                 |
+| POST   | `/auth/token/login/`          | Obtain DRF token (if enabled)    |
+| POST   | `/auth/token/logout/`         | Revoke DRF token (if enabled)    |
+| GET    | `/core/verify-email/{token}/` | Verify email address with token  |
 
 **Authorization header**: `Authorization: JWT <access_token>` (matches `AUTH_HEADER_TYPES=('JWT',)` in settings)
+
+**Email Verification Flow**:
+1. User registers via `/auth/users/` → Verification email sent automatically
+2. User clicks email link → Redirects to `/core/verify-email/{token}/`
+3. Backend verifies token (48-hour expiry) → Sets `email_verified=True`
+4. User can now place orders (blocked until verified)
 
 ### Products
 
@@ -311,13 +323,16 @@ Promotional campaigns and discounts.
 
 ```json
 {
-  "cart_id": "<cart_hex_id>"
+  "cart_id": "<32-char-hex-cart-id>"
 }
 ```
 
-- Requires authentication (JWT).
-- Copies items from the cart into the order, then deletes the cart.
-- Emits an `order_created` signal for downstream listeners.
+**Requirements:**
+- Requires authentication (JWT)
+- **Email must be verified** (returns 403 if not)
+- Cart must exist and contain items
+- Copies items from cart into order, then deletes cart
+- Emits an `order_created` signal for downstream listeners
 
 ### Customers
 
@@ -383,7 +398,19 @@ Promotional campaigns and discounts.
    DB_ENGINE=django.db.backends.sqlite3
    DB_NAME=db.sqlite3
    CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+   
+   # Email Settings (Console Backend - for development)
    EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+   
+   # For real email sending (Gmail example):
+   # EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+   # EMAIL_HOST=smtp.gmail.com
+   # EMAIL_HOST_USER=your-email@gmail.com
+   # EMAIL_HOST_PASSWORD=your-16-char-app-password
+   # EMAIL_PORT=587
+   # EMAIL_USE_TLS=True
+   # DEFAULT_FROM_EMAIL=your-email@gmail.com
+   # FRONTEND_URL=http://localhost:3000
    ```
 
    MySQL example:
@@ -399,7 +426,16 @@ Promotional campaigns and discounts.
    DB_HOST=localhost
    DB_PORT=3306
    CORS_ALLOWED_ORIGINS=http://localhost:3000
-   EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+   
+   # Email Settings (SMTP)
+   EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+   EMAIL_HOST=smtp.gmail.com
+   EMAIL_HOST_USER=your-email@gmail.com
+   EMAIL_HOST_PASSWORD=your-app-password
+   EMAIL_PORT=587
+   EMAIL_USE_TLS=True
+   DEFAULT_FROM_EMAIL=your-email@gmail.com
+   FRONTEND_URL=http://localhost:3000
    ```
 
 5. **Run migrations**
@@ -423,7 +459,9 @@ Key variables pulled from `.env`:
 - `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`
 - `DB_ENGINE`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`
 - `CORS_ALLOWED_ORIGINS` (comma-separated origins)
-- `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_PORT`, `DEFAULT_FROM_EMAIL`
+- `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`
+- `FRONTEND_URL` (for email verification links)
+- `VERIFICATION_TOKEN_EXPIRY` (token expiry in hours, default: 48)
 
 ### Database Configuration
 
@@ -467,9 +505,143 @@ python manage.py runserver 8080
 Requires a running Redis broker (`redis://localhost:6379/1` by default).
 
 ```powershell
-celery -A Ecommerce worker -l info
+# Windows - use solo pool to avoid multiprocessing issues
+celery -A Ecommerce worker --pool=solo -l info
 celery -A Ecommerce beat -l info
 ```
+
+## 📧 Email Verification
+
+### Overview
+
+The system implements token-based email verification to ensure users confirm their email addresses before placing orders.
+
+**Flow:**
+1. User registers → Automatic verification email sent (via Celery)
+2. User clicks email link → Backend verifies token
+3. Token valid (within 48 hours) → Email marked verified
+4. User can now place orders
+
+### Setup Email (Development)
+
+**Console Backend** (emails printed to terminal, no real sending):
+```env
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+```
+
+**Gmail SMTP** (sends real emails):
+
+1. **Enable 2-Step Verification** on your Gmail account:
+   - Go to https://myaccount.google.com/security
+   - Enable "2-Step Verification"
+
+2. **Generate App Password**:
+   - Go to https://myaccount.google.com/apppasswords
+   - Select "Mail" and generate
+   - Copy the 16-character password (no spaces)
+
+3. **Update .env**:
+   ```env
+   EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+   EMAIL_HOST=smtp.gmail.com
+   EMAIL_HOST_USER=your-email@gmail.com
+   EMAIL_HOST_PASSWORD=your-16-char-app-password
+   EMAIL_PORT=587
+   EMAIL_USE_TLS=True
+   DEFAULT_FROM_EMAIL=your-email@gmail.com
+   FRONTEND_URL=http://localhost:3000
+   ```
+
+4. **Start Redis** (required for Celery):
+   ```powershell
+   # Using Docker
+   docker run -d -p 6379:6379 redis
+   
+   # Or local Redis
+   redis-server
+   ```
+
+5. **Start Celery Worker**:
+   ```powershell
+   celery -A Ecommerce worker --pool=solo -l info
+   ```
+
+6. **Start Django**:
+   ```powershell
+   python manage.py runserver
+   ```
+
+### Alternative Email Providers
+
+**Outlook/Hotmail** (no app password needed):
+```env
+EMAIL_HOST=smtp-mail.outlook.com
+EMAIL_HOST_USER=your-email@outlook.com
+EMAIL_HOST_PASSWORD=your-regular-password
+EMAIL_PORT=587
+```
+
+**SendGrid** (professional, free tier):
+```env
+EMAIL_HOST=smtp.sendgrid.net
+EMAIL_HOST_USER=apikey
+EMAIL_HOST_PASSWORD=your-sendgrid-api-key
+EMAIL_PORT=587
+```
+
+### Testing Email Verification
+
+1. **Register user**:
+   ```
+   POST /auth/users/
+   {
+     "username": "testuser",
+     "email": "test@example.com",
+     "password": "SecurePass123"
+   }
+   ```
+
+2. **Check Celery logs** for email send confirmation
+
+3. **Check email inbox** (or console if using console backend)
+
+4. **Click verification link** or call manually:
+   ```
+   GET /core/verify-email/{token}/
+   ```
+
+5. **Verify status**:
+   ```
+   GET /auth/users/me/
+   Authorization: JWT {access_token}
+   
+   Response: { "email_verified": true }
+   ```
+
+6. **Try placing order** (now allowed):
+   ```
+   POST /store/orders/
+   Authorization: JWT {access_token}
+   {
+     "cart_id": "your-cart-id"
+   }
+   ```
+
+### Order Protection
+
+Orders are **blocked** until email is verified. Attempting to create an order with unverified email returns:
+```json
+{
+  "error": "Please verify your email address before placing an order."
+}
+```
+Status: `403 Forbidden`
+
+### Token Expiry
+
+- Default expiry: **48 hours**
+- Configurable via `VERIFICATION_TOKEN_EXPIRY` in settings
+- Expired tokens return error message with instructions to request new verification email
 
 ## 📊 Data Population
 

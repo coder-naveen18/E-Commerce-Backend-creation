@@ -137,7 +137,7 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = ['id', 'customer', 'placed_at', 'payment_status', 'items']
 
 class CreateOrderSerializer(serializers.Serializer):
-    cart_id = serializers.UUIDField()
+    cart_id = serializers.CharField(max_length=32)
 
     def validate_cart_id(self, cart_id):
         if not Cart.objects.filter(pk=cart_id).exists():
@@ -160,7 +160,7 @@ class CreateOrderSerializer(serializers.Serializer):
                 OrderItem(
                     order=order,
                     product = item.product,
-                    price = item.product.price,
+                    unit_price = item.product.price,
                     quantity = item.quantity
                 ) for item in cart_items
             ]

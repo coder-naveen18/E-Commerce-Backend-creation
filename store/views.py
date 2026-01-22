@@ -142,6 +142,13 @@ class OrderViewSet(ModelViewSet):
         return [IsAuthenticated()]
 
     def create(self, request, *args, **kwargs):
+        # CHECK EMAIL VERIFICATION HERE
+        if not request.user.email_verified:
+            return Response(
+            {'error': 'Please verify your email address before placing an order.'},
+            status=status.HTTP_403_FORBIDDEN
+            )
+        
         serializer = CreateOrderSerializer(data = request.data,
                                            context = {'user_id':self.request.user.id})
         serializer.is_valid(raise_exception=True)
